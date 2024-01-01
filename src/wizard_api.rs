@@ -1,4 +1,8 @@
-use poem::{error::{InternalServerError, NotFound}, web::Data, Result};
+use poem::{
+    error::{InternalServerError, NotFound},
+    web::Data,
+    Result,
+};
 use poem_openapi::{
     param::Query,
     payload::{Json, PlainText},
@@ -45,9 +49,26 @@ impl WizardApi {
     }
     #[oai(path = "/wizards/:id", method = "get")]
     async fn get_by_id(&self, pool: Data<&PgPool>, id: Query<i32>) -> Result<Json<Wizard>> {
+        let wizard = sqlx::query_as!(Wizard, r#"SELECT * FROM wizards WHERE id = $1"#, id.0)
+            .fetch_one(pool.0)
+            .await
+            .map_err(NotFound)?;
+
+        Ok(Json(wizard))
+    }
+    #[oai(path = "/wizards/:id", method = "put")]
+    async fn update(
+        &self,
+        pool: Data<&PgPool>,
+        id: Query<i32>,
+        wizard: Json<CreateWizard>,
+    ) -> Result<Json<Wizard>> {
         let wizard = sqlx::query_as!(
             Wizard,
-            r#"SELECT * FROM wizards WHERE id = $1"#,
+            r#"UPDATE wizards SET name = $1, title = $2, age = $3 WHERE id = $4 RETURNING id, name, title, age"#,
+            wizard.name,
+            wizard.title,
+            wizard.age,
             id.0
         )
         .fetch_one(pool.0)
@@ -55,5 +76,14 @@ impl WizardApi {
         .map_err(NotFound)?;
 
         Ok(Json(wizard))
+    }
+    #[oai(path = "/wizards/:id", method = "delete")]
+    async fn delete(&self, pool: Data<&PgPool>, id: Query<i32>) -> PlainText<String> {
+        sqlx::query!(r#"DELETE FROM wizards WHERE id = $1"#, id.0)
+            .execute(pool.0)
+            .await
+            .unwrap();
+
+        PlainText(format!("Wizard with id {} deleted", id.0))
     }
 }
