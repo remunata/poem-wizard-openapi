@@ -16,14 +16,6 @@ pub struct WizardApi;
 
 #[OpenApi]
 impl WizardApi {
-    #[oai(path = "/", method = "get")]
-    async fn index(&self, name: Query<Option<String>>) -> PlainText<String> {
-        match name.0 {
-            Some(name) => PlainText(format!("Hello, {}!", name)),
-            None => PlainText("Hello, wizard!".to_string()),
-        }
-    }
-
     #[oai(path = "/wizards", method = "post")]
     async fn add(&self, pool: Data<&PgPool>, wizard: Json<CreateWizard>) -> Result<Json<i32>> {
         let id: i32 = sqlx::query!(
