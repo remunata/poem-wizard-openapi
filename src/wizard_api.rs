@@ -1,6 +1,8 @@
 use crate::wizard_responses::ResponseObject;
 use crate::wizard_service::{self, Wizard, WizardError};
 use poem::{web::Data, Error};
+use poem_openapi::types::multipart::Upload;
+use poem_openapi::Multipart;
 use poem_openapi::{
     param::Path,
     payload::Json,
@@ -37,6 +39,11 @@ pub struct CreateWizardRequest {
     pub name: String,
     pub title: String,
     pub age: i32,
+}
+
+#[derive(Debug, Multipart)]
+pub struct UploadPayload {
+    pub file: Upload,
 }
 
 pub struct WizardApi;
@@ -91,7 +98,7 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::SqlxError(err) => Err(WizardResponseError::InternalServerError(Json(
+                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
                     ResponseObject::internal_server_error(err.to_string()),
                 ))),
             },
@@ -114,7 +121,30 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::SqlxError(err) => Err(WizardResponseError::InternalServerError(Json(
+                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
+                    ResponseObject::internal_server_error(err.to_string()),
+                ))),
+            },
+        }
+    }
+
+    /// Upload wizard image
+    #[oai(path = "/wizards/:id/image", method = "post")]
+    async fn upload_image(
+        &self,
+        conn: Data<&PgPool>,
+        id: Path<i32>,
+        request: UploadPayload,
+    ) -> Result<WizardResponse<String>, WizardResponseError<String>> {
+        let result = wizard_service::save_image(id.0, conn.0, request.file).await;
+
+        match result {
+            Ok(msg) => Ok(WizardResponse::Ok(Json(ResponseObject::ok(msg)))),
+            Err(err) => match err {
+                WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
+                    ResponseObject::not_found(),
+                ))),
+                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
                     ResponseObject::internal_server_error(err.to_string()),
                 ))),
             },
@@ -138,7 +168,7 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::SqlxError(err) => Err(WizardResponseError::InternalServerError(Json(
+                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
                     ResponseObject::internal_server_error(err.to_string()),
                 ))),
             },

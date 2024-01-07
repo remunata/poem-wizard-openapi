@@ -1,5 +1,6 @@
-use poem::{listener::TcpListener, EndpointExt, Route};
+use poem::{endpoint::StaticFilesEndpoint, listener::TcpListener, EndpointExt, Route};
 use poem_openapi::OpenApiService;
+use std::fs;
 
 mod wizard_api;
 mod wizard_responses;
@@ -11,6 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = sqlx::PgPool::connect(url).await?;
 
     sqlx::migrate!().run(&pool).await?;
+    let _ = fs::create_dir("./files");
 
     let api_service = OpenApiService::new(wizard_api::WizardApi, "Wizard API", "1.0.0")
         .server("http://localhost:3000");
@@ -20,6 +22,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Route::new()
         .nest("/", api_service)
         .nest("/docs", ui)
+        .nest(
+            "/files",
+            StaticFilesEndpoint::new("./files").show_files_listing(),
+        )
         .data(pool);
 
     poem::Server::new(TcpListener::bind("0.0.0.0:3000"))

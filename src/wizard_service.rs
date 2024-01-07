@@ -1,7 +1,15 @@
 use crate::wizard_api::CreateWizardRequest;
-use poem_openapi::Object;
+use poem_openapi::{types::multipart::Upload, Object};
 use sqlx::{FromRow, PgPool};
-use std::{error::Error, fmt::Display};
+use std::{
+    error::Error,
+    ffi::OsStr,
+    fmt::Display,
+    fs,
+    io::Write,
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[derive(Debug, Object, FromRow)]
 pub struct Wizard {
@@ -15,14 +23,14 @@ pub struct Wizard {
 #[derive(Debug)]
 pub enum WizardError {
     NotFoundError,
-    SqlxError(sqlx::Error),
+    ExtError(Box<dyn std::error::Error>),
 }
 
 impl Display for WizardError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             WizardError::NotFoundError => write!(f, "Row not found!"),
-            WizardError::SqlxError(err) => write!(f, "{}", err),
+            WizardError::ExtError(err) => write!(f, "{}", err),
         }
     }
 }
@@ -31,7 +39,13 @@ impl Error for WizardError {}
 
 impl From<sqlx::Error> for WizardError {
     fn from(err: sqlx::Error) -> Self {
-        WizardError::SqlxError(err)
+        WizardError::ExtError(Box::new(err))
+    }
+}
+
+impl From<std::io::Error> for WizardError {
+    fn from(err: std::io::Error) -> Self {
+        WizardError::ExtError(Box::new(err))
     }
 }
 
@@ -129,5 +143,52 @@ pub async fn delete_by_id(id: i32, conn: &PgPool) -> Result<(), WizardError> {
             Ok(())
         }
         false => Err(WizardError::NotFoundError),
+    }
+}
+
+pub async fn save_image(id: i32, conn: &PgPool, request: Upload) -> Result<String, WizardError> {
+    let query = "
+        SELECT id, name, title, age, image_name
+        FROM wizards WHERE id = $1
+    ";
+
+    let wizard = sqlx::query_as::<_, Wizard>(query)
+        .bind(id)
+        .fetch_optional(conn)
+        .await?;
+
+    match wizard {
+        None => Err(WizardError::NotFoundError),
+        Some(wizard) => {
+            if let Some(img_name) = wizard.image_name {
+                let img_path = format!("./files/{}", img_name);
+                let _ = fs::remove_file(img_path);
+            }
+
+            let filename = request.file_name().unwrap_or_else(|| "default.png");
+            let ext = Path::new(filename).extension().and_then(OsStr::to_str);
+            let ext = ext.unwrap_or_else(|| "png");
+
+            let milis = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_millis();
+
+            let filename = format!("{}{}.{}", milis, id, ext);
+            let path = format!("./files/{}", &filename);
+
+            let data = request.into_vec().await?;
+            let mut file = fs::OpenOptions::new().create(true).write(true).open(path)?;
+            let _ = file.write_all(&data);
+
+            let query = "UPDATE wizards SET image_name = $1 WHERE id = $2";
+            sqlx::query(query)
+                .bind(&filename)
+                .bind(id)
+                .execute(conn)
+                .await?;
+
+            Ok(filename)
+        }
     }
 }
