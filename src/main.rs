@@ -2,12 +2,15 @@ use poem::{listener::TcpListener, EndpointExt, Route};
 use poem_openapi::OpenApiService;
 
 mod wizard_api;
+mod wizard_responses;
+mod wizard_service;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pool =
-        sqlx::PgPool::connect("postgres://postgres:postgrespass@localhost/poem_wizard_api").await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    let url = "postgres://postgres:postgrespass@localhost/poem_wizard_api";
+    let pool = sqlx::PgPool::connect(url).await?;
+
+    sqlx::migrate!().run(&pool).await?;
 
     let api_service = OpenApiService::new(wizard_api::WizardApi, "Wizard API", "1.0.0")
         .server("http://localhost:3000");
@@ -19,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/docs", ui)
         .data(pool);
 
-    poem::Server::new(TcpListener::bind("127.0.0.1:3000"))
+    poem::Server::new(TcpListener::bind("0.0.0.0:3000"))
         .run(app)
         .await?;
 
