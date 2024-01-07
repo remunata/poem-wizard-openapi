@@ -7,6 +7,7 @@ mod wizard_api;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool =
         sqlx::PgPool::connect("postgres://postgres:postgrespass@localhost/poem_wizard_api").await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     let api_service = OpenApiService::new(wizard_api::WizardApi, "Wizard API", "1.0.0")
         .server("http://localhost:3000");
