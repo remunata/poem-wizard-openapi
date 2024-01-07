@@ -22,10 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Route::new()
         .nest("/", api_service)
         .nest("/docs", ui)
-        .nest(
-            "/files",
-            StaticFilesEndpoint::new("./files").show_files_listing(),
-        )
+        .nest("/files", StaticFilesEndpoint::new("./files"))
         .data(pool);
 
     poem::Server::new(TcpListener::bind("0.0.0.0:3000"))
