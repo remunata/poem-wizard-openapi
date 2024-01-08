@@ -78,7 +78,11 @@ pub async fn create(request: CreateWizardRequest, conn: &PgPool) -> Result<Wizar
 }
 
 pub async fn get_all(conn: &PgPool) -> Result<Vec<Wizard>, Box<dyn Error>> {
-    let query = "SELECT id, name, title, age, image_name FROM wizards";
+    let query = "
+        SELECT id, name, title, age, image_name 
+        FROM wizards
+        ORDER BY id ASC
+    ";
 
     let wizards = sqlx::query_as::<_, Wizard>(query).fetch_all(conn).await?;
 
