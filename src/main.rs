@@ -1,4 +1,6 @@
-use poem::{endpoint::StaticFilesEndpoint, listener::TcpListener, EndpointExt, Route};
+use poem::{
+    endpoint::StaticFilesEndpoint, listener::TcpListener, middleware::Cors, EndpointExt, Route,
+};
 use poem_openapi::OpenApiService;
 use std::fs;
 
@@ -23,6 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/", api_service)
         .nest("/docs", ui)
         .nest("/files", StaticFilesEndpoint::new("./files"))
+        .with(Cors::new())
         .data(pool);
 
     poem::Server::new(TcpListener::bind("0.0.0.0:3000"))
