@@ -74,9 +74,12 @@ pub async fn create(request: CreateWizardRequest, conn: &PgPool) -> Result<Wizar
         .fetch_one(conn)
         .await?;
 
+    tracing::info!("New wizard created: {:?}", &wizard);
+
     Ok(wizard)
 }
 
+#[tracing::instrument]
 pub async fn get_all(conn: &PgPool) -> Result<Vec<Wizard>, Box<dyn Error>> {
     let query = "
         SELECT id, name, title, age, image_name 
@@ -85,6 +88,8 @@ pub async fn get_all(conn: &PgPool) -> Result<Vec<Wizard>, Box<dyn Error>> {
     ";
 
     let wizards = sqlx::query_as::<_, Wizard>(query).fetch_all(conn).await?;
+
+    tracing::info!("Fetch all wizards data");
 
     Ok(wizards)
 }
@@ -132,6 +137,8 @@ pub async fn update_by_id(
                 .fetch_one(conn)
                 .await?;
 
+            tracing::info!("Wizard updated: {:?}", &wizard);
+
             Ok(wizard)
         }
     }
@@ -144,6 +151,7 @@ pub async fn delete_by_id(id: i32, conn: &PgPool) -> Result<(), WizardError> {
         true => {
             let query = "DELETE FROM wizards WHERE id = $1";
             sqlx::query(query).bind(id).execute(conn).await?;
+            tracing::info!("Wizard with id {} deleted", id);
             Ok(())
         }
         false => Err(WizardError::NotFoundError),
@@ -166,7 +174,10 @@ pub async fn save_image(id: i32, conn: &PgPool, request: Upload) -> Result<Strin
         Some(wizard) => {
             if let Some(img_name) = wizard.image_name {
                 let img_path = format!("./files/{}", img_name);
-                let _ = fs::remove_file(img_path);
+                let result = fs::remove_file(&img_path);
+                if let Ok(_) = result {
+                    tracing::info!("File {} deleted", img_path);
+                }
             }
 
             let filename = request.file_name().unwrap_or_else(|| "default.png");
@@ -182,8 +193,13 @@ pub async fn save_image(id: i32, conn: &PgPool, request: Upload) -> Result<Strin
             let path = format!("./files/{}", &filename);
 
             let data = request.into_vec().await?;
-            let mut file = fs::OpenOptions::new().create(true).write(true).open(path)?;
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(&path)?;
             let _ = file.write_all(&data);
+
+            tracing::info!("File {} stored in server", path);
 
             let query = "UPDATE wizards SET image_name = $1 WHERE id = $2";
             sqlx::query(query)
@@ -191,6 +207,12 @@ pub async fn save_image(id: i32, conn: &PgPool, request: Upload) -> Result<Strin
                 .bind(id)
                 .execute(conn)
                 .await?;
+
+            tracing::info!(
+                "Wizard image updated, id: {}, image_name: {}",
+                id,
+                &filename
+            );
 
             Ok(filename)
         }

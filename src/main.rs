@@ -19,6 +19,13 @@ fn database_url() -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let subscriber = tracing_subscriber::fmt()
+        .compact()
+        .with_thread_ids(true)
+        .with_target(true)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)?;
+
     let url = database_url();
     let pool = sqlx::PgPool::connect(&url).await?;
 

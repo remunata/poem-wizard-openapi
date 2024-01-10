@@ -9,3 +9,5 @@ poem-openapi = { version = "4.0.0", features = [ "openapi-explorer" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 sqlx = { version = "0.7.3", features = [ "runtime-tokio", "tls-rustls", "postgres" ] }
 tokio = { version = "1.35.1", features = [ "full" ] }
+tracing = "0.1"
+tracing-subscriber = "0.3"

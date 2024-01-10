@@ -10,6 +10,7 @@ use poem_openapi::{
     ApiResponse, Object, OpenApi,
 };
 use sqlx::PgPool;
+use tracing::info;
 
 #[derive(ApiResponse)]
 #[oai(bad_request_handler = "wizard_bad_request_handler")]
@@ -34,7 +35,7 @@ fn wizard_bad_request_handler<T: ParseFromJSON + ToJSON + Send + Sync>(
     WizardResponse::BadRequest(Json(ResponseObject::bad_request(None)))
 }
 
-#[derive(Object)]
+#[derive(Debug, Object)]
 pub struct CreateWizardRequest {
     pub name: String,
     pub title: String,
@@ -61,9 +62,12 @@ impl WizardApi {
 
         match wizard {
             Ok(wizard) => Ok(WizardResponse::Ok(Json(ResponseObject::ok(wizard)))),
-            Err(err) => Err(WizardResponseError::InternalServerError(Json(
-                ResponseObject::internal_server_error(err.to_string()),
-            ))),
+            Err(err) => {
+                tracing::error!("POST /wizards ERROR: {}", &err.to_string());
+                Err(WizardResponseError::InternalServerError(Json(
+                    ResponseObject::internal_server_error(err.to_string()),
+                )))
+            }
         }
     }
 
@@ -77,9 +81,12 @@ impl WizardApi {
 
         match wizards {
             Ok(wizards) => Ok(WizardResponse::Ok(Json(ResponseObject::ok(wizards)))),
-            Err(err) => Err(WizardResponseError::InternalServerError(Json(
-                ResponseObject::internal_server_error(err.to_string()),
-            ))),
+            Err(err) => {
+                tracing::error!("GET /wizards error: {}", err.to_string());
+                Err(WizardResponseError::InternalServerError(Json(
+                    ResponseObject::internal_server_error(err.to_string()),
+                )))
+            }
         }
     }
 
@@ -98,9 +105,12 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
-                    ResponseObject::internal_server_error(err.to_string()),
-                ))),
+                WizardError::ExtError(err) => {
+                    tracing::error!("GET /wizards/{} error: {}", id.0, err.to_string());
+                    Err(WizardResponseError::InternalServerError(Json(
+                        ResponseObject::internal_server_error(err.to_string()),
+                    )))
+                }
             },
         }
     }
@@ -121,9 +131,12 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
-                    ResponseObject::internal_server_error(err.to_string()),
-                ))),
+                WizardError::ExtError(err) => {
+                    tracing::error!("PUT /wizards/{} error: {}", id.0, err.to_string());
+                    Err(WizardResponseError::InternalServerError(Json(
+                        ResponseObject::internal_server_error(err.to_string()),
+                    )))
+                }
             },
         }
     }
@@ -144,9 +157,12 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
-                    ResponseObject::internal_server_error(err.to_string()),
-                ))),
+                WizardError::ExtError(err) => {
+                    tracing::error!("POST /wizards/{}/image error: {}", id.0, err.to_string());
+                    Err(WizardResponseError::InternalServerError(Json(
+                        ResponseObject::internal_server_error(err.to_string()),
+                    )))
+                }
             },
         }
     }
@@ -168,9 +184,12 @@ impl WizardApi {
                 WizardError::NotFoundError => Err(WizardResponseError::NotFound(Json(
                     ResponseObject::not_found(),
                 ))),
-                WizardError::ExtError(err) => Err(WizardResponseError::InternalServerError(Json(
-                    ResponseObject::internal_server_error(err.to_string()),
-                ))),
+                WizardError::ExtError(err) => {
+                    tracing::error!("DELETE /wizards/{} error: {}", id.0, err.to_string());
+                    Err(WizardResponseError::InternalServerError(Json(
+                        ResponseObject::internal_server_error(err.to_string()),
+                    )))
+                }
             },
         }
     }
