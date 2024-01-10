@@ -1,25 +1,38 @@
 version: '3.9'
 services:
-  postgres:
+  server:
+    build:
+      context: .
+      target: final
+    ports:
+      - 3000:3000
+    environment:
+      - PG_HOST=db
+      - PG_DBNAME=wizard
+      - PG_USER=postgres
+      - PG_PASSWORD=postgrespass
+    volumes:
+      - server-files:/files
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
     image: postgres
     restart: always
-    ports:
-      - 5432:5432
+    user: postgres
     environment:
-      - POSTGRES_USER=postgres
+      - POSTGRES_DB=wizard
       - POSTGRES_PASSWORD=postgrespass
-      - POSTGRES_DB=poem_wizard_api
     volumes:
-      - pgdb:/var/lib/postgresql/data
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - 5050:80
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=pgadmin@wizard.com
-      - PGADMIN_DEFAULT_PASSWORD=pgadminpass
-    volumes:
-      - pgadmin:/var/lib/pgadmin
+      - db-data:/var/lib/postgresql/data
+    expose:
+      - 5432
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
-  pgdb:
-  pgadmin:
+  db-data:
+  server-files:
