@@ -1,6 +1,6 @@
 ARG RUST_VERSION=1.75.0
 ARG APP_NAME=poem-wizard-openapi
-FROM rust:${RUST_VERSION}-slim-bullseye AS build
+FROM rust:${RUST_VERSION}-slim-bookworm AS build
 ARG APP_NAME
 WORKDIR /app
 
@@ -16,7 +16,7 @@ cargo build --locked --release
 cp ./target/release/$APP_NAME /bin/server
 EOF
 
-FROM debian:bullseye-slim AS final
+FROM debian:bookworm-slim AS final
 
 ARG UID=10001
 RUN adduser \
